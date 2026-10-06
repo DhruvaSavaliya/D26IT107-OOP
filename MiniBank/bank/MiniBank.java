@@ -4,63 +4,50 @@ public class MiniBank {
 
     public static void main(String[] args) {
 
-        Account account1 = new Account("Dhruva", 7000);
-        Account account2 = new Account("Bhakti",4351);
-        Account account3 = new Account("John");
+        System.out.println("Validator Tests:");
 
-        System.out.println("Accounts:");
+        System.out.println("Mobile valid: "
+                + Validator.isValidMobile("9876543210"));
 
-        System.out.println(account1.toString());
-        System.out.println(account2.toString());
-        System.out.println(account3.toString());
+        System.out.println("Mobile invalid: "
+                + Validator.isValidMobile("1234567890"));
 
-        System.out.println();
+        System.out.println("Email valid: "
+                + Validator.isValidEmail("dhruva@gmail.com"));
 
-        Account account4 = account1;
+        System.out.println("Email invalid: "
+                + Validator.isValidEmail("dhruva@gmail"));
 
-        System.out.println("Equals:");
-        System.out.println("account1 equals account4: "
-                + account1.equals(account4));
+        System.out.println("PAN valid: "
+                + Validator.isValidPan("ABCDE1234F"));
 
-        System.out.println();
+        System.out.println("PAN invalid: "
+                + Validator.isValidPan("ABC123"));
 
-        System.out.println("Instanceof:");
+        System.out.println("IFSC valid: "
+                + Validator.isValidIfsc("SBIN0001234"));
 
-        if (account1 instanceof Account) {
-            System.out.println("account1 is an Account");
-        }
-
-        System.out.println();
-
-        Customer.Address address =
-                new Customer.Address(
-                        "Charusat Campus, petlad highway",
-                        "Anand",
-                        "388001"
-                );
-
-        Customer customer1 =
-                new Customer("Dhruva", address);
-
-        Customer customer2 = customer1.clone();
-
-        System.out.println("Customer:");
-
-        System.out.println("Name: "
-                + customer1.getName());
-
-        System.out.println("Address: "
-                + customer1.getAddress().getLine());
-
-        System.out.println("City: "
-                + customer1.getAddress().getCity());
-
-        System.out.println("Pincode: "
-                + customer1.getAddress().getPincode());
+        System.out.println("IFSC invalid: "
+                + Validator.isValidIfsc("SBI123"));
 
         System.out.println();
 
-        System.out.println("Clone created: "
-                + (customer1 != customer2));
+        System.out.println("Command Parser:");
+
+        Command command =
+                CommandParser.parse("DEPOSIT AC0001 500");
+
+        System.out.println("Type: " + command.type());
+        System.out.println("Account Number: "
+                + command.accountNumber());
+        System.out.println("Amount: " + command.amount());
+
+        System.out.println();
+
+        Account account =
+                new Account("Dhruva", 5000);
+
+        System.out.println(
+                StatementFormatter.buildStatement(account));
     }
 }
