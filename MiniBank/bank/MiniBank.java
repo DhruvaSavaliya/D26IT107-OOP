@@ -1,3 +1,5 @@
+package bank;
+
 import java.util.Scanner;
 
 public class MiniBank {
@@ -22,10 +24,32 @@ public class MiniBank {
         System.out.println("----- " + bank.name() + " -----");
         System.out.println("Branch: " + bank.branch());
 
+        Account[] accounts = new Account[3];
+
+        accounts[0] = new Account("Dhruva", 5000);
+        accounts[1] = new Account("Bhakti");
+        accounts[2] = new Account("John", 3000);
+
+        accounts[0].deposit(1000);
+        accounts[1].deposit(2000);
+
+        accounts[0].withdraw(2000);
+        accounts[1].withdraw(500);
+        accounts[2].withdraw(4000);
+
+        System.out.println("\nAccount Details:");
+
+        for (Account account : accounts) {
+            System.out.println("Account Number: " + account.getAccountNumber());
+            System.out.println("Owner: " + account.getOwnerName());
+            System.out.println("Balance: " + account.getBalance());
+            System.out.println();
+        }
+
         int choice;
 
         do {
-            System.out.println("\n1. Open Account");
+            System.out.println("1. Open Account");
             System.out.println("2. Deposit");
             System.out.println("3. Withdraw");
             System.out.println("4. Transfer");
