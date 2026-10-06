@@ -1,78 +1,66 @@
 package bank;
 
-import java.util.Scanner;
-
 public class MiniBank {
-
-    record BankInfo(String name, String branch) {
-    }
-
-    enum MenuOption {
-        OPEN_ACCOUNT,
-        DEPOSIT,
-        WITHDRAW,
-        TRANSFER,
-        EXIT
-    }
 
     public static void main(String[] args) {
 
-        Scanner sc = new Scanner(System.in);
+        Account account1 = new Account("Dhruva", 7000);
+        Account account2 = new Account("Bhakti",4351);
+        Account account3 = new Account("John");
 
-        BankInfo bank = new BankInfo("MiniBank", "CHARUSAT");
+        System.out.println("Accounts:");
 
-        System.out.println("----- " + bank.name() + " -----");
-        System.out.println("Branch: " + bank.branch());
+        System.out.println(account1.toString());
+        System.out.println(account2.toString());
+        System.out.println(account3.toString());
 
-        Account[] accounts = new Account[3];
+        System.out.println();
 
-        accounts[0] = new Account("Dhruva", 5000);
-        accounts[1] = new Account("Bhakti");
-        accounts[2] = new Account("John", 3000);
+        Account account4 = account1;
 
-        accounts[0].deposit(1000);
-        accounts[1].deposit(2000);
+        System.out.println("Equals:");
+        System.out.println("account1 equals account4: "
+                + account1.equals(account4));
 
-        accounts[0].withdraw(2000);
-        accounts[1].withdraw(500);
-        accounts[2].withdraw(4000);
+        System.out.println();
 
-        System.out.println("\nAccount Details:");
+        System.out.println("Instanceof:");
 
-        for (Account account : accounts) {
-            System.out.println("Account Number: " + account.getAccountNumber());
-            System.out.println("Owner: " + account.getOwnerName());
-            System.out.println("Balance: " + account.getBalance());
-            System.out.println();
+        if (account1 instanceof Account) {
+            System.out.println("account1 is an Account");
         }
 
-        int choice;
+        System.out.println();
 
-        do {
-            System.out.println("1. Open Account");
-            System.out.println("2. Deposit");
-            System.out.println("3. Withdraw");
-            System.out.println("4. Transfer");
-            System.out.println("5. Exit");
-            System.out.print("Enter your choice: ");
+        Customer.Address address =
+                new Customer.Address(
+                        "Charusat Campus, petlad highway",
+                        "Anand",
+                        "388001"
+                );
 
-            choice = sc.nextInt();
+        Customer customer1 =
+                new Customer("Dhruva", address);
 
-            String result = switch (choice) {
-                case 1 -> "Open Account - to be implemented in a later lab";
-                case 2 -> "Deposit - to be implemented in a later lab";
-                case 3 -> "Withdraw - to be implemented in a later lab";
-                case 4 -> "Transfer - to be implemented in a later lab";
-                case 5 -> "Exiting MiniBank...";
-                default -> "Invalid choice";
-            };
+        Customer customer2 = customer1.clone();
 
-            System.out.println(result);
+        System.out.println("Customer:");
 
-        } while (choice != 5);
+        System.out.println("Name: "
+                + customer1.getName());
 
-        System.out.println("Thank you for using MiniBank.");
+        System.out.println("Address: "
+                + customer1.getAddress().getLine());
 
-        sc.close();
+        System.out.println("City: "
+                + customer1.getAddress().getCity());
+
+        System.out.println("Pincode: "
+                + customer1.getAddress().getPincode());
+
+        System.out.println();
+
+        System.out.println("Clone created: "
+                + (customer1 != customer2));
     }
 }
