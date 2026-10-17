@@ -1,6 +1,5 @@
 package exception;
 
-/** Raised when an account cannot cover a requested withdrawal. */
 public class InsufficientFundsException extends BankException {
     private static final long serialVersionUID = 1L;
 

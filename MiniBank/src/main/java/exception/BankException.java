@@ -1,6 +1,5 @@
 package exception;
 
-/** Base checked exception for MiniBank transaction failures. */
 public class BankException extends Exception {
     private static final long serialVersionUID = 1L;
 

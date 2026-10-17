@@ -1,6 +1,5 @@
 package service;
 
-/** A bounded circular buffer coordinated with wait() and notifyAll(). */
 public final class TransactionBuffer {
     private final Runnable[] items;
     private int head;
