@@ -3,6 +3,9 @@ package service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import exception.AccountNotFoundException;
+import exception.BankException;
+import exception.InsufficientFundsException;
 import model.Account;
 import model.CurrentAccount;
 import model.Customer;
@@ -28,7 +31,6 @@ public class MiniBank {
     }
 
     public static void main(String[] args) {
-        Scanner input = new Scanner(System.in);
         List<Account> accounts = new ArrayList<>(List.of(
                 new SavingsAccount("Dhruva", 5000, 1000),
                 new CurrentAccount("Bhakti", 2000, 5000),
@@ -56,6 +58,13 @@ public class MiniBank {
         System.out.println(bank);
         System.out.println("================================\n");
 
+        try (BankSession session = new BankSession()) {
+            runMenu(session.scanner(), accounts, customers);
+        }
+    }
+
+    private static void runMenu(Scanner input, List<Account> accounts,
+                                List<Customer> customers) {
         boolean running = true;
         while (running) {
             printMenu();
@@ -76,20 +85,32 @@ public class MiniBank {
                 continue;
             }
 
-            switch (option) {
-                case OPEN_ACCOUNT -> openAccount(input, accounts, customers);
-                case DEPOSIT -> deposit(input, accounts);
-                case WITHDRAW -> withdraw(input, accounts);
-                case TRANSFER -> transfer(input, accounts);
-                case LIST_ACCOUNTS -> listAccounts(accounts);
-                case STATEMENT -> printStatement(input, accounts);
-                case EXIT -> {
-                    running = false;
-                    System.out.println("Thank you for banking with MiniBank. Goodbye!");
+            try {
+                switch (option) {
+                    case OPEN_ACCOUNT -> openAccount(input, accounts, customers);
+                    case DEPOSIT -> deposit(input, accounts);
+                    case WITHDRAW -> withdraw(input, accounts);
+                    case TRANSFER -> transfer(input, accounts);
+                    case LIST_ACCOUNTS -> listAccounts(accounts);
+                    case STATEMENT -> printStatement(input, accounts);
+                    case EXIT -> {
+                        running = false;
+                        System.out.println("Thank you for banking with MiniBank. Goodbye!");
+                    }
+                }
+            } catch (InsufficientFundsException e) {
+                System.out.println("Transaction failed: short by " + e.getShortfall() + " rupees.");
+            } catch (AccountNotFoundException e) {
+                System.out.println(e.getMessage());
+            } catch (BankException e) {
+                System.out.println("Transaction failed: " + e.getMessage());
+            } finally {
+                if (option == MenuOption.DEPOSIT || option == MenuOption.WITHDRAW
+                        || option == MenuOption.TRANSFER) {
+                    System.out.println("Transaction attempt finished.");
                 }
             }
         }
-        input.close();
     }
 
     private static void printMenu() {
@@ -150,21 +171,17 @@ public class MiniBank {
         System.out.printf("Interest rate: %.1f%% per year%n", account.interestRate());
     }
 
-    private static void deposit(Scanner input, List<Account> accounts) {
+    private static void deposit(Scanner input, List<Account> accounts)
+            throws BankException {
         Account account = findAccount(input, accounts, "Account number: ");
-        if (account == null) return;
         long amount = readLong(input, "Deposit amount: ");
-        if (amount > 0) {
-            account.deposit(amount);
-            System.out.println("Deposit successful. New balance: " + account.getBalance());
-        } else {
-            System.out.println("Deposit amount must be greater than zero.");
-        }
+        account.deposit(amount);
+        System.out.println("Deposit successful. New balance: " + account.getBalance());
     }
 
-    private static void withdraw(Scanner input, List<Account> accounts) {
+    private static void withdraw(Scanner input, List<Account> accounts)
+            throws BankException {
         Account account = findAccount(input, accounts, "Account number: ");
-        if (account == null) return;
         long amount = readLong(input, "Withdrawal amount: ");
         WithdrawRule anonymousRule = new WithdrawRule() {
             @Override
@@ -180,31 +197,21 @@ public class MiniBank {
         System.out.println("Anonymous WithdrawRule allows: " + anonymousAllowed);
         System.out.println("Lambda WithdrawRule allows: " + lambdaAllowed);
 
-        if (anonymousAllowed && lambdaAllowed && account.withdraw(amount)) {
+        if (anonymousAllowed && lambdaAllowed) {
+            account.withdraw(amount);
             System.out.println("Withdrawal successful. New balance: " + account.getBalance());
-        } else if (account instanceof FixedDepositAccount) {
-            System.out.println("Withdrawal denied: fixed deposit is locked.");
         } else {
-            System.out.println("Withdrawal denied: amount is invalid or account limit would be exceeded.");
+            account.withdraw(amount); // Throws a checked exception with the reason.
         }
     }
 
-    private static void transfer(Scanner input, List<Account> accounts) {
+    private static void transfer(Scanner input, List<Account> accounts)
+            throws BankException {
         Account from = findAccount(input, accounts, "From account number: ");
-        if (from == null) return;
         Account to = findAccount(input, accounts, "To account number: ");
-        if (to == null) return;
-        if (from.equals(to)) {
-            System.out.println("Source and destination must be different accounts.");
-            return;
-        }
         long amount = readLong(input, "Transfer amount: ");
-        if (amount > 0 && from.withdraw(amount)) {
-            to.deposit(amount);
-            System.out.println("Transfer successful.");
-        } else {
-            System.out.println("Transfer denied: source account withdrawal limit exceeded.");
-        }
+        from.transfer(to, amount);
+        System.out.println("Transfer successful.");
     }
 
     private static void listAccounts(List<Account> accounts) {
@@ -221,15 +228,15 @@ public class MiniBank {
         }
     }
 
-    private static void printStatement(Scanner input, List<Account> accounts) {
+    private static void printStatement(Scanner input, List<Account> accounts)
+            throws AccountNotFoundException {
         Account account = findAccount(input, accounts, "Account number: ");
-        if (account != null) {
-            System.out.print(StatementFormatter.buildStatement(account));
-            System.out.printf("Yearly interest estimate: %.2f%n", account.yearlyInterest());
-        }
+        System.out.print(StatementFormatter.buildStatement(account));
+        System.out.printf("Yearly interest estimate: %.2f%n", account.yearlyInterest());
     }
 
-    private static Account findAccount(Scanner input, List<Account> accounts, String prompt) {
+    private static Account findAccount(Scanner input, List<Account> accounts, String prompt)
+            throws AccountNotFoundException {
         System.out.print(prompt);
         String accountNumber = input.nextLine().trim();
         for (Account account : accounts) {
@@ -237,8 +244,7 @@ public class MiniBank {
                 return account;
             }
         }
-        System.out.println("Account not found: " + accountNumber);
-        return null;
+        throw new AccountNotFoundException(accountNumber);
     }
 
     private static int readInt(Scanner input, String prompt) {
