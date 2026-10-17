@@ -9,6 +9,7 @@ import model.Customer;
 import model.FixedDepositAccount;
 import model.Premium;
 import model.SavingsAccount;
+import util.AnnotationValidator;
 import util.StatementFormatter;
 import static util.Validator.isValidEmail;
 import static util.Validator.isValidMobile;
@@ -35,9 +36,25 @@ public class MiniBank {
         List<Customer> customers = new ArrayList<>();
         BankInfo bank = new BankInfo("MiniBank", "Charusat Branch");
 
-        System.out.println("================================");
+        Account invalidAccount = new SavingsAccount("Validation Demo", -100, 0);
+        String[] invalidErrors = AnnotationValidator.validate(invalidAccount);
+        String[] validErrors = AnnotationValidator.validate(accounts.get(0));
+
+        System.out.println("========================================");
+        System.out.println("Practical 7: Annotation Validation");
+        System.out.println("========================================");
+        System.out.println("Invalid account: " + invalidAccount);
+        System.out.println("Validation errors:");
+        for (String error : invalidErrors) {
+            System.out.println("  - " + error);
+        }
+        System.out.println("Valid account: " + accounts.get(0));
+        System.out.println("Validation errors: "
+                + (validErrors.length == 0 ? "none" : String.join(", ", validErrors)));
+
+        System.out.println("\n================================");
         System.out.println(bank);
-        System.out.println("================================");
+        System.out.println("================================\n");
 
         boolean running = true;
         while (running) {
@@ -76,7 +93,9 @@ public class MiniBank {
     }
 
     private static void printMenu() {
-        System.out.println("\n1. Open account");
+        System.out.println("Main Menu");
+        System.out.println("---------");
+        System.out.println("1. Open account");
         System.out.println("2. Deposit");
         System.out.println("3. Withdraw");
         System.out.println("4. Transfer");

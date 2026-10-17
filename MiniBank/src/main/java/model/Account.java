@@ -1,12 +1,19 @@
 
 package model;
 
+import model.annotation.Id;
+import model.annotation.MaxLength;
+import model.annotation.Positive;
+
 public abstract class Account implements Transactable, InterestBearing {
 
     private static int nextAccountNumber = 1;
 
+    @Id
     private final String accountNumber;
+    @MaxLength(50)
     private String ownerName;
+    @Positive
     protected double balance;
 
     public Account(String ownerName) {
