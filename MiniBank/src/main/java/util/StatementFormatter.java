@@ -1,4 +1,6 @@
-package bank;
+package util;
+
+import model.Account;
 
 public class StatementFormatter {
 

@@ -1,4 +1,4 @@
-package bank;
+package util;
 
 import java.util.regex.Pattern;
 
@@ -32,3 +32,4 @@ public class Validator {
         return IFSC.matcher(ifsc).matches();
     }
 }
+

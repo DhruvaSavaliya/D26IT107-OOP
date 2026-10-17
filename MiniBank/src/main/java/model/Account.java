@@ -1,7 +1,7 @@
 
-package Bank;
+package model;
 
-public abstract class Account {
+public abstract class Account implements Transactable, InterestBearing {
 
     private static int nextAccountNumber = 1;
 
@@ -33,14 +33,15 @@ public abstract class Account {
         return balance;
     }
 
-    public boolean deposit(long amount) {
+    @Override
+    public void deposit(long amount) {
         if (amount <= 0) {
-            return false;
+            return;
         }
         balance += amount;
-        return true;
     }
 
+    @Override
     public boolean withdraw(long amount) {
         if (amount <= 0 || !canWithdraw(amount)) {
             return false;

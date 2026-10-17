@@ -1,8 +1,17 @@
-package Bank;
+package service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import model.Account;
+import model.CurrentAccount;
+import model.Customer;
+import model.FixedDepositAccount;
+import model.Premium;
+import model.SavingsAccount;
+import util.StatementFormatter;
+import static util.Validator.isValidEmail;
+import static util.Validator.isValidMobile;
 
 public class MiniBank {
 
@@ -14,7 +23,7 @@ public class MiniBank {
     }
 
     private enum MenuOption {
-        OPEN_ACCOUNT, DEPOSIT, WITHDRAW, TRANSFER, LIST_ACCOUNTS, EXIT
+        OPEN_ACCOUNT, DEPOSIT, WITHDRAW, TRANSFER, LIST_ACCOUNTS, STATEMENT, EXIT
     }
 
     public static void main(String[] args) {
@@ -23,6 +32,7 @@ public class MiniBank {
                 new SavingsAccount("Dhruva", 5000, 1000),
                 new CurrentAccount("Bhakti", 2000, 5000),
                 new FixedDepositAccount("Aarya", 10000)));
+        List<Customer> customers = new ArrayList<>();
         BankInfo bank = new BankInfo("MiniBank", "Charusat Branch");
 
         System.out.println("================================");
@@ -39,21 +49,23 @@ public class MiniBank {
                 case 3 -> MenuOption.WITHDRAW;
                 case 4 -> MenuOption.TRANSFER;
                 case 5 -> MenuOption.LIST_ACCOUNTS;
-                case 6 -> MenuOption.EXIT;
+                case 6 -> MenuOption.STATEMENT;
+                case 7 -> MenuOption.EXIT;
                 default -> null;
             };
 
             if (option == null) {
-                System.out.println("Invalid choice. Enter a number from 1 to 6.");
+                System.out.println("Invalid choice. Enter a number from 1 to 7.");
                 continue;
             }
 
             switch (option) {
-                case OPEN_ACCOUNT -> openAccount(input, accounts);
+                case OPEN_ACCOUNT -> openAccount(input, accounts, customers);
                 case DEPOSIT -> deposit(input, accounts);
                 case WITHDRAW -> withdraw(input, accounts);
                 case TRANSFER -> transfer(input, accounts);
                 case LIST_ACCOUNTS -> listAccounts(accounts);
+                case STATEMENT -> printStatement(input, accounts);
                 case EXIT -> {
                     running = false;
                     System.out.println("Thank you for banking with MiniBank. Goodbye!");
@@ -69,10 +81,12 @@ public class MiniBank {
         System.out.println("3. Withdraw");
         System.out.println("4. Transfer");
         System.out.println("5. List accounts");
-        System.out.println("6. Exit");
+        System.out.println("6. View statement");
+        System.out.println("7. Exit");
     }
 
-    private static void openAccount(Scanner input, List<Account> accounts) {
+    private static void openAccount(Scanner input, List<Account> accounts,
+                                    List<Customer> customers) {
         System.out.println("Account type: 1. Savings  2. Current  3. Fixed Deposit");
         int type = readInt(input, "Choose account type: ");
         if (type < 1 || type > 3) {
@@ -86,6 +100,18 @@ public class MiniBank {
             System.out.println("Owner name cannot be empty.");
             return;
         }
+        System.out.print("Email address: ");
+        String email = input.nextLine().trim();
+        if (!isValidEmail(email)) {
+            System.out.println("Invalid email address.");
+            return;
+        }
+        System.out.print("Mobile number: ");
+        String mobile = input.nextLine().trim();
+        if (!isValidMobile(mobile)) {
+            System.out.println("Invalid mobile number. Use a 10-digit number starting with 6-9.");
+            return;
+        }
         long openingBalance = readLong(input, "Opening balance (rupees): ");
         if (openingBalance < 0) {
             System.out.println("Opening balance cannot be negative.");
@@ -97,7 +123,10 @@ public class MiniBank {
             case 2 -> new CurrentAccount(owner, openingBalance, 5000);
             default -> new FixedDepositAccount(owner, openingBalance);
         };
+        Customer customer = new Customer(owner, email, mobile);
+        customers.add(customer);
         accounts.add(account);
+        System.out.println("Customer created: " + customer.getCustomerId());
         System.out.println("Account opened: " + account);
         System.out.printf("Interest rate: %.1f%% per year%n", account.interestRate());
     }
@@ -106,7 +135,8 @@ public class MiniBank {
         Account account = findAccount(input, accounts, "Account number: ");
         if (account == null) return;
         long amount = readLong(input, "Deposit amount: ");
-        if (account.deposit(amount)) {
+        if (amount > 0) {
+            account.deposit(amount);
             System.out.println("Deposit successful. New balance: " + account.getBalance());
         } else {
             System.out.println("Deposit amount must be greater than zero.");
@@ -117,7 +147,21 @@ public class MiniBank {
         Account account = findAccount(input, accounts, "Account number: ");
         if (account == null) return;
         long amount = readLong(input, "Withdrawal amount: ");
-        if (account.withdraw(amount)) {
+        WithdrawRule anonymousRule = new WithdrawRule() {
+            @Override
+            public boolean allow(Account candidate, long requestedAmount) {
+                return requestedAmount > 0 && candidate.canWithdraw(requestedAmount);
+            }
+        };
+        WithdrawRule lambdaRule = (candidate, requestedAmount) ->
+                requestedAmount > 0 && candidate.canWithdraw(requestedAmount);
+
+        boolean anonymousAllowed = anonymousRule.allow(account, amount);
+        boolean lambdaAllowed = lambdaRule.allow(account, amount);
+        System.out.println("Anonymous WithdrawRule allows: " + anonymousAllowed);
+        System.out.println("Lambda WithdrawRule allows: " + lambdaAllowed);
+
+        if (anonymousAllowed && lambdaAllowed && account.withdraw(amount)) {
             System.out.println("Withdrawal successful. New balance: " + account.getBalance());
         } else if (account instanceof FixedDepositAccount) {
             System.out.println("Withdrawal denied: fixed deposit is locked.");
@@ -136,7 +180,7 @@ public class MiniBank {
             return;
         }
         long amount = readLong(input, "Transfer amount: ");
-        if (from.withdraw(amount)) {
+        if (amount > 0 && from.withdraw(amount)) {
             to.deposit(amount);
             System.out.println("Transfer successful.");
         } else {
@@ -147,11 +191,22 @@ public class MiniBank {
     private static void listAccounts(List<Account> accounts) {
         System.out.println("\nAccount list:");
         for (Account account : accounts.toArray(Account[]::new)) {
-            System.out.printf("%s | interest %.1f%% per year%n",
-                    account, account.interestRate());
+            System.out.printf("%s | interest %.1f%% per year | estimated yearly interest: %.2f%n",
+                    account, account.interestRate(), account.yearlyInterest());
+            if (account instanceof Premium) {
+                System.out.println("  Premium account");
+            }
             if (account instanceof FixedDepositAccount fixedDeposit) {
                 System.out.println("  Fixed deposit is locked; withdrawals are not allowed.");
             }
+        }
+    }
+
+    private static void printStatement(Scanner input, List<Account> accounts) {
+        Account account = findAccount(input, accounts, "Account number: ");
+        if (account != null) {
+            System.out.print(StatementFormatter.buildStatement(account));
+            System.out.printf("Yearly interest estimate: %.2f%n", account.yearlyInterest());
         }
     }
 

@@ -1,17 +1,45 @@
-package bank;
+package model;
 
 public class Customer implements Cloneable {
 
+    private static long customerCounter = 100;
+
+    private final String customerId;
     private String name;
+    private String email;
+    private String mobile;
     private Address address;
 
-    public Customer(String name, Address address) {
+    public Customer(String name, String email, String mobile) {
+        this.customerId = generateCustomerId();
         this.name = name;
+        this.email = email;
+        this.mobile = mobile;
+    }
+
+    public Customer(String name, Address address) {
+        this(name, "", "");
         this.address = address;
+    }
+
+    private static String generateCustomerId() {
+        return "CUST" + (++customerCounter);
+    }
+
+    public String getCustomerId() {
+        return customerId;
     }
 
     public String getName() {
         return name;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getMobile() {
+        return mobile;
     }
 
     public Address getAddress() {

@@ -1,4 +1,4 @@
-package bank;
+package model;
 
 public record Command(
         TransactionType type,

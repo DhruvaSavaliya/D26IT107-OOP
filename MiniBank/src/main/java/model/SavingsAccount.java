@@ -1,5 +1,5 @@
 
-package Bank;
+package model;
 
 public class SavingsAccount extends Account {
 
