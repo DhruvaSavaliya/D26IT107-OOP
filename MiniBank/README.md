@@ -18,7 +18,7 @@ Withdrawal rules are demonstrated with both an anonymous class and a lambda.
 Runtime annotations (`@Id`, `@Positive`, and `@MaxLength`) are checked by
 `util.AnnotationValidator` using reflection. Checked bank exceptions report invalid
 amounts, missing accounts, and insufficient funds; transfers roll back on failure.
-The console scanner is managed by a try-with-resources `BankSession`.
+The console scanner is managed by a try-with-resources `BankSession`. Account deposits, withdrawals, and balance reads are synchronized. Choose the concurrency demo in the menu to compare unsynchronized and synchronized deposits.
 
 ## Package layout
 

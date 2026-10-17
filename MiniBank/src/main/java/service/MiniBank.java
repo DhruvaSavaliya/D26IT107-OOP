@@ -12,6 +12,7 @@ import model.Customer;
 import model.FixedDepositAccount;
 import model.Premium;
 import model.SavingsAccount;
+import model.UnsafeAccountWorker;
 import util.AnnotationValidator;
 import util.StatementFormatter;
 import static util.Validator.isValidEmail;
@@ -27,7 +28,7 @@ public class MiniBank {
     }
 
     private enum MenuOption {
-        OPEN_ACCOUNT, DEPOSIT, WITHDRAW, TRANSFER, LIST_ACCOUNTS, STATEMENT, EXIT
+        OPEN_ACCOUNT, DEPOSIT, WITHDRAW, TRANSFER, LIST_ACCOUNTS, STATEMENT, CONCURRENCY_DEMO, EXIT
     }
 
     public static void main(String[] args) {
@@ -76,12 +77,13 @@ public class MiniBank {
                 case 4 -> MenuOption.TRANSFER;
                 case 5 -> MenuOption.LIST_ACCOUNTS;
                 case 6 -> MenuOption.STATEMENT;
-                case 7 -> MenuOption.EXIT;
+                case 7 -> MenuOption.CONCURRENCY_DEMO;
+                case 8 -> MenuOption.EXIT;
                 default -> null;
             };
 
             if (option == null) {
-                System.out.println("Invalid choice. Enter a number from 1 to 7.");
+                System.out.println("Invalid choice. Enter a number from 1 to 8.");
                 continue;
             }
 
@@ -93,6 +95,7 @@ public class MiniBank {
                     case TRANSFER -> transfer(input, accounts);
                     case LIST_ACCOUNTS -> listAccounts(accounts);
                     case STATEMENT -> printStatement(input, accounts);
+                    case CONCURRENCY_DEMO -> runConcurrencyDemo();
                     case EXIT -> {
                         running = false;
                         System.out.println("Thank you for banking with MiniBank. Goodbye!");
@@ -113,6 +116,49 @@ public class MiniBank {
         }
     }
 
+    private static void runConcurrencyDemo() {
+        final int workerCount = 10;
+        final int depositsPerWorker = 1000;
+        final long depositAmount = 1;
+        long expectedBalance = (long) workerCount * depositsPerWorker * depositAmount;
+
+        System.out.println("\nPractical 9: Thread Safety Demo");
+        System.out.println("Workers: " + workerCount + ", deposits per worker: "
+                + depositsPerWorker + ", amount: " + depositAmount);
+
+        Account raceAccount = new SavingsAccount("Race Demo", 0, 0);
+        try {
+            runWorkers(raceAccount, workerCount, depositsPerWorker, depositAmount, false);
+            System.out.println("Balance before synchronization: "
+                    + raceAccount.getBalance() + " (expected " + expectedBalance + ")");
+
+            Account safeAccount = new SavingsAccount("Synchronized Demo", 0, 0);
+            runWorkers(safeAccount, workerCount, depositsPerWorker, depositAmount, true);
+            System.out.println("Balance after synchronization: "
+                    + safeAccount.getBalance() + " (expected " + expectedBalance + ")");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("Concurrency demo interrupted.");
+        }
+    }
+
+    private static void runWorkers(Account account, int workerCount, int times,
+                                   long amount, boolean synchronizedDeposit)
+            throws InterruptedException {
+        Thread[] workers = new Thread[workerCount];
+        for (int i = 0; i < workerCount; i++) {
+            Runnable task = synchronizedDeposit
+                    ? new AccountWorker(account, times, amount)
+                    : new UnsafeAccountWorker(account, times, amount);
+            String prefix = synchronizedDeposit ? "safe-deposit-" : "race-deposit-";
+            workers[i] = new Thread(task, prefix + (i + 1));
+            workers[i].start();
+        }
+        for (Thread worker : workers) {
+            worker.join();
+        }
+    }
+
     private static void printMenu() {
         System.out.println("Main Menu");
         System.out.println("---------");
@@ -122,7 +168,8 @@ public class MiniBank {
         System.out.println("4. Transfer");
         System.out.println("5. List accounts");
         System.out.println("6. View statement");
-        System.out.println("7. Exit");
+        System.out.println("7. Run concurrency demo");
+        System.out.println("8. Exit");
     }
 
     private static void openAccount(Scanner input, List<Account> accounts,

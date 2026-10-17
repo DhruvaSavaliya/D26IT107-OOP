@@ -39,12 +39,12 @@ public abstract class Account implements Transactable, InterestBearing {
         return ownerName;
     }
 
-    public double getBalance() {
+    public synchronized double getBalance() {
         return balance;
     }
 
     @Override
-    public void deposit(long amount) throws InvalidAmountException {
+    public synchronized void deposit(long amount) throws InvalidAmountException {
         if (amount <= 0) {
             throw new InvalidAmountException("Deposit amount must be greater than zero.");
         }
@@ -52,7 +52,7 @@ public abstract class Account implements Transactable, InterestBearing {
     }
 
     @Override
-    public boolean withdraw(long amount)
+    public synchronized boolean withdraw(long amount)
             throws InsufficientFundsException, InvalidAmountException {
         if (amount <= 0) {
             throw new InvalidAmountException("Withdrawal amount must be greater than zero.");
@@ -63,6 +63,15 @@ public abstract class Account implements Transactable, InterestBearing {
         }
         balance -= amount;
         return true;
+    }
+
+    void depositUnsynchronizedForRaceDemo(long amount) throws InvalidAmountException {
+        if (amount <= 0) {
+            throw new InvalidAmountException("Deposit amount must be greater than zero.");
+        }
+        double currentBalance = balance;
+        Thread.yield();
+        balance = currentBalance + amount;
     }
 
     public void transfer(Account to, long amount) throws BankException {
@@ -93,7 +102,7 @@ public abstract class Account implements Transactable, InterestBearing {
     public abstract boolean canWithdraw(long amount);
 
     @Override
-    public String toString() {
+    public synchronized String toString() {
         return accountNumber + " | " + ownerName + " | " + balance;
     }
 
