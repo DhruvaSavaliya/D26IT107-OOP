@@ -1,5 +1,7 @@
 package model;
 
+import java.io.Serial;
+import java.io.Serializable;
 import exception.AccountNotFoundException;
 import exception.BankException;
 import exception.InsufficientFundsException;
@@ -8,7 +10,10 @@ import model.annotation.Id;
 import model.annotation.MaxLength;
 import model.annotation.Positive;
 
-public abstract class Account implements Transactable, InterestBearing {
+public abstract class Account implements Transactable, InterestBearing, Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     private static int nextAccountNumber = 1;
 
@@ -33,6 +38,22 @@ public abstract class Account implements Transactable, InterestBearing {
 
     public String getAccountNumber() {
         return accountNumber;
+    }
+
+    public static void synchronizeAccountNumberSequence(Iterable<? extends Account> accounts) {
+        int largestNumber = 0;
+        for (Account account : accounts) {
+            String number = account.getAccountNumber();
+            if (number != null && number.startsWith("AC")) {
+                try {
+                    largestNumber = Math.max(largestNumber,
+                            Integer.parseInt(number.substring(2)));
+                } catch (NumberFormatException ignored) {
+                    // Ignore account numbers that do not use the generated AC-number format.
+                }
+            }
+        }
+        nextAccountNumber = Math.max(nextAccountNumber, largestNumber + 1);
     }
 
     public String getOwnerName() {

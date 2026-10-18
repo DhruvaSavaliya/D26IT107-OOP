@@ -1,6 +1,12 @@
 package model;
 
-public class Customer implements Cloneable {
+import java.io.Serial;
+import java.io.Serializable;
+
+public class Customer implements Cloneable, Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     private static long customerCounter = 100;
 
@@ -46,7 +52,10 @@ public class Customer implements Cloneable {
         return address;
     }
 
-    public static class Address {
+    public static class Address implements Serializable {
+
+        @Serial
+        private static final long serialVersionUID = 1L;
 
         private String line;
         private String city;

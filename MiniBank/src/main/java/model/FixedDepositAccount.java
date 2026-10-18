@@ -1,9 +1,14 @@
 
 package model;
 
+import java.io.Serial;
+import java.io.Serializable;
 import exception.InvalidAmountException;
 
-public class FixedDepositAccount extends Account {
+public class FixedDepositAccount extends Account implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     public FixedDepositAccount(String ownerName, double balance) {
         super(ownerName, balance);

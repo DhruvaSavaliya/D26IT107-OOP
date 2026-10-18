@@ -3,6 +3,9 @@ package service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.CountDownLatch;
 import exception.AccountNotFoundException;
 import exception.BankException;
@@ -21,6 +24,11 @@ import static util.Validator.isValidMobile;
 
 public class MiniBank {
 
+    private static final Path DATA_DIRECTORY = Path.of("data");
+    private static final Path ACCOUNT_FILE = DATA_DIRECTORY.resolve("accounts.dat");
+    private static final Path LOGS_DIRECTORY = DATA_DIRECTORY.resolve("logs");
+    private static final Path REPORT_FILE = DATA_DIRECTORY.resolve("reports/end-of-day-report.txt");
+
     private record BankInfo(String name, String branch) {
         @Override
         public String toString() {
@@ -29,14 +37,12 @@ public class MiniBank {
     }
 
     private enum MenuOption {
-        OPEN_ACCOUNT, DEPOSIT, WITHDRAW, TRANSFER, LIST_ACCOUNTS, STATEMENT, CONCURRENCY_DEMO, TRANSACTION_PROCESSING_DEMO, EXIT
+        OPEN_ACCOUNT, DEPOSIT, WITHDRAW, TRANSFER, LIST_ACCOUNTS, STATEMENT,
+        CONCURRENCY_DEMO, TRANSACTION_PROCESSING_DEMO, REPORT, EXIT
     }
 
     public static void main(String[] args) {
-        List<Account> accounts = new ArrayList<>(List.of(
-                new SavingsAccount("Dhruva", 5000, 1000),
-                new CurrentAccount("Bhakti", 2000, 5000),
-                new FixedDepositAccount("Aarya", 10000)));
+        List<Account> accounts = loadAccounts();
         List<Customer> customers = new ArrayList<>();
         BankInfo bank = new BankInfo("MiniBank", "Charusat Branch");
 
@@ -63,6 +69,37 @@ public class MiniBank {
         try (BankSession session = new BankSession()) {
             runMenu(session.scanner(), accounts, customers);
         }
+        saveAccounts(accounts);
+    }
+
+    private static List<Account> loadAccounts() {
+        try {
+            Account[] savedAccounts = StatePersister.load(ACCOUNT_FILE);
+            if (savedAccounts.length > 0) {
+                Account.synchronizeAccountNumberSequence(List.of(savedAccounts));
+                System.out.println("Loaded " + savedAccounts.length + " saved account(s).");
+                return new ArrayList<>(List.of(savedAccounts));
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            System.out.println("Could not load saved accounts: " + e.getMessage());
+            System.out.println("Starting with sample accounts.");
+        }
+
+        List<Account> sampleAccounts = new ArrayList<>(List.of(
+                new SavingsAccount("Dhruva", 5000, 1000),
+                new CurrentAccount("Bhakti", 2000, 5000),
+                new FixedDepositAccount("Aarya", 10000)));
+        Account.synchronizeAccountNumberSequence(sampleAccounts);
+        return sampleAccounts;
+    }
+
+    private static void saveAccounts(List<Account> accounts) {
+        try {
+            StatePersister.save(accounts.toArray(Account[]::new), ACCOUNT_FILE);
+            System.out.println("Saved " + accounts.size() + " account(s) to " + ACCOUNT_FILE + ".");
+        } catch (IOException e) {
+            System.out.println("Could not save accounts: " + e.getMessage());
+        }
     }
 
     private static void runMenu(Scanner input, List<Account> accounts,
@@ -80,12 +117,13 @@ public class MiniBank {
                 case 6 -> MenuOption.STATEMENT;
                 case 7 -> MenuOption.CONCURRENCY_DEMO;
                 case 8 -> MenuOption.TRANSACTION_PROCESSING_DEMO;
-                case 9 -> MenuOption.EXIT;
+                case 9 -> MenuOption.REPORT;
+                case 10 -> MenuOption.EXIT;
                 default -> null;
             };
 
             if (option == null) {
-                System.out.println("Invalid choice. Enter a number from 1 to 9.");
+                System.out.println("Invalid choice. Enter a number from 1 to 10.");
                 continue;
             }
 
@@ -99,6 +137,7 @@ public class MiniBank {
                     case STATEMENT -> printStatement(input, accounts);
                     case CONCURRENCY_DEMO -> runConcurrencyDemo();
                     case TRANSACTION_PROCESSING_DEMO -> runTransactionProcessingDemo();
+                    case REPORT -> generateReport();
                     case EXIT -> {
                         running = false;
                         System.out.println("Thank you for banking with MiniBank. Goodbye!");
@@ -110,6 +149,8 @@ public class MiniBank {
                 System.out.println(e.getMessage());
             } catch (BankException e) {
                 System.out.println("Transaction failed: " + e.getMessage());
+            } catch (IOException e) {
+                System.out.println("File operation failed: " + e.getMessage());
             } finally {
                 if (option == MenuOption.DEPOSIT || option == MenuOption.WITHDRAW
                         || option == MenuOption.TRANSFER) {
@@ -117,6 +158,12 @@ public class MiniBank {
                 }
             }
         }
+    }
+
+    private static void generateReport() throws IOException {
+        String report = ReportGenerator.generate(LOGS_DIRECTORY, REPORT_FILE);
+        System.out.print(report);
+        System.out.println("Report saved to " + REPORT_FILE + ".");
     }
 
     private static void runConcurrencyDemo() {
@@ -299,7 +346,8 @@ public class MiniBank {
         System.out.println("6. View statement");
         System.out.println("7. Run concurrency demo");
         System.out.println("8. Process transactions");
-        System.out.println("9. Exit");
+        System.out.println("9. Generate end-of-day report");
+        System.out.println("10. Exit");
     }
 
     private static void openAccount(Scanner input, List<Account> accounts,
@@ -343,6 +391,10 @@ public class MiniBank {
         Customer customer = new Customer(owner, email, mobile);
         customers.add(customer);
         accounts.add(account);
+        if (openingBalance > 0) {
+            appendTransaction("DEPOSIT " + account.getAccountNumber() + " "
+                    + (long) openingBalance);
+        }
         System.out.println("Customer created: " + customer.getCustomerId());
         System.out.println("Account opened: " + account);
         System.out.printf("Interest rate: %.1f%% per year%n", account.interestRate());
@@ -353,6 +405,7 @@ public class MiniBank {
         Account account = findAccount(input, accounts, "Account number: ");
         long amount = readLong(input, "Deposit amount: ");
         account.deposit(amount);
+        appendTransaction("DEPOSIT " + account.getAccountNumber() + " " + amount);
         System.out.println("Deposit successful. New balance: " + account.getBalance());
     }
 
@@ -376,6 +429,7 @@ public class MiniBank {
 
         if (anonymousAllowed && lambdaAllowed) {
             account.withdraw(amount);
+            appendTransaction("WITHDRAW " + account.getAccountNumber() + " " + amount);
             System.out.println("Withdrawal successful. New balance: " + account.getBalance());
         } else {
             account.withdraw(amount); // Throws a checked exception with the reason.
@@ -388,7 +442,18 @@ public class MiniBank {
         Account to = findAccount(input, accounts, "To account number: ");
         long amount = readLong(input, "Transfer amount: ");
         from.transfer(to, amount);
+        appendTransaction("WITHDRAW " + from.getAccountNumber() + " " + amount);
+        appendTransaction("DEPOSIT " + to.getAccountNumber() + " " + amount);
         System.out.println("Transfer successful.");
+    }
+
+    private static void appendTransaction(String entry) {
+        try {
+            TransactionLog.append(LOGS_DIRECTORY.resolve("transactions.log"), entry);
+        } catch (IOException e) {
+            System.out.println("Warning: transaction completed but could not be logged: "
+                    + e.getMessage());
+        }
     }
 
     private static void listAccounts(List<Account> accounts) {
